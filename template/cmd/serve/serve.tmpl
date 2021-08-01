@@ -1,0 +1,85 @@
+package serve
+
+import (
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
+	"{{.ProjectPath}}/config"
+	"{{.ProjectPath}}/internal/middleware"
+	"{{.ProjectPath}}/internal/router"
+	"{{.ProjectPath}}/pkg"
+	logger "gitlab.yiban.io/we-work-go-team/we-work-component/nlog"
+)
+
+var ServeCmd = &cobra.Command{
+	Use: "server",
+	PreRun: func(cmd *cobra.Command, args []string) {
+		// set up config
+		config.Setup(cfgFile)
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		run()
+	},
+}
+
+var cfgFile string
+
+func init() {
+	ServeCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/settings_default.yaml", "sepecify config file path")
+}
+
+func run() {
+	switch config.Config.Application.Mode {
+	case pkg.ModeDev:
+		gin.SetMode(gin.DebugMode)
+		logger.Infof("now in mode %s\n", pkg.ModeDev)
+	case pkg.ModeTest:
+		gin.SetMode(gin.TestMode)
+		logger.Infof("now in mode %s\n", pkg.ModeTest)
+	default:
+		gin.SetMode(gin.ReleaseMode)
+		logger.Infof("now in mode %s\n", pkg.ModeProd)
+	}
+
+	r := gin.New()
+	r = middleware.InitMiddleWare(r)
+	r = router.InitRouter(r)
+
+	srv := http.Server{
+		Addr:         config.Config.Application.Host + ":" + config.Config.Application.Port,
+		Handler:      r,
+		ReadTimeout:  time.Duration(config.Config.Application.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(config.Config.Application.WriteTimeout) * time.Second,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			logger.Errorf("Listen: %s\n", err)
+		}
+	}()
+
+	logger.Infof("%s Server Run http://%s:%s/ \r\n",
+		time.Now().String(),
+		config.Config.Application.Host,
+		config.Config.Application.Port,
+	)
+
+	logger.Infof("%s Enter Control + C Shutdown Server \r\n", time.Now().String())
+
+	// below codes are used for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+	<-quit
+	logger.Infof("%s server is shutting down...", time.Now().String())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Fatalf("server down error: ", err)
+	}
+	logger.Info("server have been down")
+}

@@ -1,0 +1,24 @@
+package cmd
+
+import (
+	"os"
+
+	"github.com/spf13/cobra"
+	"{{.ProjectPath}}/cmd/serve"
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "{{.ProjectName}}",
+	Short: "",
+	Long:  "",
+}
+
+func init() {
+	rootCmd.AddCommand(serve.ServeCmd)
+}
+
+func Execute() {
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
+	}
+}
