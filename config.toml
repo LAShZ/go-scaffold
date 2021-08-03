@@ -1,0 +1,11 @@
+[project]
+name="test"
+module="github.com/LAShZ/test"
+[log]
+use=true
+logger="gitlab.yiban.io/wework-go-team/we-work-component/nlog"
+[orm]
+use=false
+[web]
+use=true
+frame="github.com/gin-gonic/gin"
