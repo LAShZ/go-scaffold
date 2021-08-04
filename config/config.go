@@ -24,16 +24,35 @@ type WebConfig struct {
 type RedisConfig struct {
 	Use bool
 }
-
-var Info struct {
+type Config struct {
 	Project struct {
-		Name   string
-		Module string
+		Name      string
+		Module    string
+		GoVersion string
 	}
 	Log   LogConfig
 	ORM   ORMConfig
 	Web   WebConfig
 	Redis RedisConfig
+}
+
+var Info Config
+
+func init() {
+	Info = Config{
+		Log: LogConfig{
+			Use:    true,
+			Logger: "go.uber.org/zap",
+		},
+		ORM: ORMConfig{
+			Use:   true,
+			Frame: "gorm.io/gorm",
+		},
+		Web: WebConfig{
+			Use:   true,
+			Frame: "github.com/gin-gonic/gin",
+		},
+	}
 }
 
 func Setup(filePath string) {
@@ -54,4 +73,5 @@ func Setup(filePath string) {
 	if err != nil {
 		panic("Marshal config failed!")
 	}
+	fmt.Println(Info)
 }

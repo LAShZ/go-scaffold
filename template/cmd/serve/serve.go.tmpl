@@ -1,3 +1,4 @@
+{{if .Config.Web.Use}}
 package serve
 
 import (
@@ -13,7 +14,7 @@ import (
 	"{{.ProjectModule}}/internal/middleware"
 	"{{.ProjectModule}}/internal/router"
 	"{{.ProjectModule}}/pkg"
-	logger "gitlab.yiban.io/we-work-go-team/we-work-component/nlog"
+	logger "{{.Config.Log.Logger}}"
 )
 
 var ServeCmd = &cobra.Command{
@@ -30,7 +31,7 @@ var ServeCmd = &cobra.Command{
 var cfgFile string
 
 func init() {
-	ServeCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/settings_default.yaml", "sepecify config file path")
+	ServeCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/settings.yaml", "sepecify config file path")
 }
 
 func run() {
@@ -83,3 +84,5 @@ func run() {
 	}
 	logger.Info("server have been down")
 }
+
+{{end}}

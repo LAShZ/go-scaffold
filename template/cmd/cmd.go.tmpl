@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(serve.ServeCmd)
+	{{with .Config.Web.Use}} rootCmd.AddCommand(serve.ServeCmd) {{end}}
 }
 
 func Execute() {

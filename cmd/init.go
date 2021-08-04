@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"embed"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/LAShZ/go-scaffold/config"
@@ -13,7 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ProjectName string
 var configFile string
 
 var initCmd = &cobra.Command{
@@ -21,7 +21,7 @@ var initCmd = &cobra.Command{
 	Short: "generate scaffold",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 1 {
-			ProjectName = args[len(args)-1]
+			pkg.ProjectName = args[len(args)-1]
 		}
 		return nil
 	},
@@ -32,26 +32,44 @@ var initCmd = &cobra.Command{
 		}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if ProjectName == "" {
+		if pkg.ProjectName == "" {
 			path, err := os.Getwd()
 			if err != nil {
 				log.Println("ERROR: get current filepath failed!")
 				return
 			}
 			pathSlice := strings.Split(path, string(filepath.Separator))
-			ProjectName = pathSlice[len(pathSlice)-1]
+			pkg.ProjectName = pathSlice[len(pathSlice)-1]
 		}
-		fmt.Printf("Creating project: %s\n", ProjectName)
+		if config.Info.Project.Name != "" {
+			pkg.ProjectName = config.Info.Project.Name
+		}
+		if config.Info.Project.Module != "" {
+			pkg.ProjectModule = config.Info.Project.Module
+		} else if pkg.ProjectModule == "" {
+			pkg.ProjectModule = pkg.ProjectName
+		}
+		if config.Info.Project.GoVersion != "" {
+			pkg.GoVersion = config.Info.Project.GoVersion
+		} else {
+			version := runtime.Version()
+			version = strings.TrimPrefix(version, "go")
+			version = strings.Join(strings.Split(version, ".")[:2], ".")
+			pkg.GoVersion = version
+		}
+		fmt.Printf("\033[0;31mCreating project: \033[0m%s\n", pkg.ProjectName)
 		generateProject(Template)
 	},
 }
 
 func init() {
-	initCmd.Flags().StringVarP(&ProjectName, "name", "n", "", "specify project name")
-	initCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "./config.toml", "specify personal config file path")
+	initCmd.Flags().StringVarP(&pkg.ProjectName, "name", "n", "", "specify project name")
+	initCmd.PersistentFlags().StringVarP(&pkg.ProjectModule, "module", "m", "", "specify project module")
+	initCmd.PersistentFlags().StringVarP(&configFile, "config", "c", "", "specify personal config file path")
+	initCmd.PersistentFlags().BoolVarP(&pkg.Verbose, "verbose", "v", false, "show details of building")
 }
 
-func generateProject(fs fs.FS) {
+func generateProject(fs embed.FS) {
 	var opts []pkg.Options
 	if config.Info.Log.Use {
 		opts = append(opts, pkg.WithLogger(config.Info.Log.Logger))
