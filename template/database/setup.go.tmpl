@@ -1,0 +1,65 @@
+{{if or .Config.ORM.Use .Config.Redis.Use}}
+package database
+import (
+	"{{.ProjectModule}}/config"
+    {{if .Config.ORM.Use}}
+	"gorm.io/gorm"
+	"gorm.io/gorm/callbacks"
+	"strings"
+    {{- end}}
+    {{if .Config.Redis.Use}}
+    "github.com/go-redis/redis"
+    {{- end}}
+)
+{{if .Config.ORM.Use}}
+var Eloquent *gorm.DB
+
+func ORMSetup() {
+	//初始化mysql
+	dbType := config.MasterDatabaseConfig.DbType
+	if dbType == "mysql" {
+		var db = new(Mysql)
+		db.Setup()
+		Eloquent.Callback().Query().Replace("gorm:query", execTimeQuery)
+	}
+}
+
+func execTimeQuery(db *gorm.DB) {
+	if db.Error == nil {
+		callbacks.BuildQuerySQL(db)
+
+		sql := db.Statement.SQL.String()
+		sql = strings.Replace(sql, "SELECT", "SELECT /*+ MAX_EXECUTION_TIME(1000) */", 1)
+		db.Statement.SQL.Reset()
+		db.Statement.SQL.Write([]byte(sql))
+
+		if !db.DryRun && db.Error == nil {
+			rows, err := db.Statement.ConnPool.QueryContext(db.Statement.Context, db.Statement.SQL.String(), db.Statement.Vars...)
+			if err != nil {
+				db.AddError(err)
+				return
+			}
+			defer rows.Close()
+
+			gorm.Scan(rows, db, false)
+		}
+	}
+}
+{{- end}}
+
+{{if .Config.Redis.Use}}
+var RedisClient *redis.Client
+
+func RedisSetup() {
+	RedisClient = redis.NewClient(&redis.Options{
+		Addr:     config.RedisConfig.Url,
+		Password: config.RedisConfig.Password,
+		DB:       config.RedisConfig.Db,
+	})
+	_, err := RedisClient.Ping().Result()
+	if err != nil {
+		panic("redis ping error:" + err.Error())
+	}
+}
+{{- end}}
+{{- end}}

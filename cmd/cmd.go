@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/LAShZ/go-scaffold/pkg/tempfs"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +17,7 @@ const ASCIIART string = `
   \|____|\  \ \  \____\ \  \ \  \ \  \_| \ \  \_| \ \  \\\  \ \  \____\ \  \_\\ \ 
     ____\_\  \ \_______\ \__\ \__\ \__\   \ \__\   \ \_______\ \_______\ \_______\
    |\_________\|_______|\|__|\|__|\|__|    \|__|    \|_______|\|_______|\|_______|
-   \|_________|                                                                                                                                                
+   \|_________|             
                                                                                   
 		`
 
@@ -29,7 +30,7 @@ var rootCmd = &cobra.Command{
 		fmt.Println("run go-scaffold -h for help")
 	},
 }
-var Template embed.FS
+var Template tempfs.TempFS
 
 func init() {
 	rootCmd.AddCommand(initCmd)

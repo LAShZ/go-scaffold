@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"{{.ProjectPath}}/cmd/serve"
+	"{{.ProjectModule}}/cmd/serve"
 )
 
 var rootCmd = &cobra.Command{
@@ -14,7 +14,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	{{with .Config.Web.Use}} rootCmd.AddCommand(serve.ServeCmd) {{end}}
+	{{with .Config.Web.Use}} rootCmd.AddCommand(serve.ServeCmd) {{- end}}
 }
 
 func Execute() {

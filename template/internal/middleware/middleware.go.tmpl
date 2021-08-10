@@ -1,0 +1,24 @@
+{{if .Config.Web.Use}}
+
+package middleware
+
+import (
+	"{{.Config.Web.Frame}}"
+	"{{.ProjectModule}}/config"
+	"{{.ProjectModule}}/pkg"
+    {{if eq .Config.Web.Frame "github.com/gin-gonic/gin"}}
+	"go.elastic.co/apm/module/apmgin"
+    {{end}}
+)
+
+{{if eq .Config.Web.Frame "github.com/gin-gonic/gin"}}
+func InitMiddleWare(g *gin.Engine) {
+	if config.ApplicationConfig.Mode == pkg.ModeDev {
+		g.Use(gin.Logger())
+	}
+	g.Use(apmgin.Middleware(g))
+	g.Use(gin.Recovery())
+}
+{{end}}
+
+{{end}}

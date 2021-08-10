@@ -8,20 +8,31 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"{{.Config.Web.Frame}}"
 	"github.com/spf13/cobra"
 	"{{.ProjectModule}}/config"
 	"{{.ProjectModule}}/internal/middleware"
 	"{{.ProjectModule}}/internal/router"
 	"{{.ProjectModule}}/pkg"
+	{{if or .Config.ORM.Use .Config.Redis.Use}}
+	"{{.ProjectModule}}/database"
+	{{- end}}
 	logger "{{.Config.Log.Logger}}"
 )
 
 var ServeCmd = &cobra.Command{
-	Use: "server",
+	Use: "serve",
 	PreRun: func(cmd *cobra.Command, args []string) {
 		// set up config
 		config.Setup(cfgFile)
+		{{if .Config.ORM.Use}}
+		// set up ORM
+		database.ORMSetup()
+		{{- end}}
+		{{if .Config.Redis.Use}}
+		// set up redis
+		database.RedisSetup()
+		{{- end}}
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		run()
@@ -34,8 +45,9 @@ func init() {
 	ServeCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "./config/settings.yaml", "sepecify config file path")
 }
 
+{{if eq .Config.Web.Frame "github.com/gin-gonic/gin"}}
 func run() {
-	switch config.Config.Application.Mode {
+	switch config.ApplicationConfig.Mode {
 	case pkg.ModeDev:
 		gin.SetMode(gin.DebugMode)
 		logger.Infof("now in mode %s\n", pkg.ModeDev)
@@ -48,14 +60,14 @@ func run() {
 	}
 
 	r := gin.New()
-	r = middleware.InitMiddleWare(r)
-	r = router.InitRouter(r)
+	middleware.InitMiddleWare(r)
+	router.InitRouter(r)
 
 	srv := http.Server{
-		Addr:         config.Config.Application.Host + ":" + config.Config.Application.Port,
+		Addr:         config.ApplicationConfig.Host + ":" + config.ApplicationConfig.Port,
 		Handler:      r,
-		ReadTimeout:  time.Duration(config.Config.Application.ReadTimeout) * time.Second,
-		WriteTimeout: time.Duration(config.Config.Application.WriteTimeout) * time.Second,
+		ReadTimeout:  time.Duration(config.ApplicationConfig.ReadTimeout) * time.Second,
+		WriteTimeout: time.Duration(config.ApplicationConfig.WriteTimeout) * time.Second,
 	}
 
 	go func() {
@@ -66,8 +78,8 @@ func run() {
 
 	logger.Infof("%s Server Run http://%s:%s/ \r\n",
 		time.Now().String(),
-		config.Config.Application.Host,
-		config.Config.Application.Port,
+		config.ApplicationConfig.Host,
+		config.ApplicationConfig.Port,
 	)
 
 	logger.Infof("%s Enter Control + C Shutdown Server \r\n", time.Now().String())
@@ -84,5 +96,6 @@ func run() {
 	}
 	logger.Info("server have been down")
 }
+{{- end}}
 
-{{end}}
+{{- end}}

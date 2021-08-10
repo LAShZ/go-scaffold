@@ -1,0 +1,54 @@
+package config
+
+import (
+	"github.com/spf13/viper"
+)
+
+func Setup(path string) {
+	settingCfg := viper.New()
+	settingCfg.SetConfigFile(path)
+	if err := settingCfg.ReadInConfig(); err != nil {
+		panic("读取配置文件失败:" + err.Error())
+	}
+
+	{{if eq .Config.Log.Logger "go.uber.org/zap"}}
+	// 日志
+	cfgLogger := settingCfg.Sub("logger")
+	if cfgLogger == nil {
+		panic("config not found logger")
+	}
+	InitLogger(cfgLogger)
+	{{- end}}
+	{{if .Config.Web.Use}}
+	// 启动参数
+	cfgApplication := settingCfg.Sub("application")
+	if cfgApplication == nil {
+		panic("config not found application")
+	}
+	ApplicationConfig = InitApplication(cfgApplication)
+	{{- end}}
+
+	{{if .Config.ORM.Use}}
+	// mysql主库
+	cfgDatabaseMaster := settingCfg.Sub("database.master")
+	if cfgDatabaseMaster == nil {
+		panic("config not found database.master")
+	}
+	MasterDatabaseConfig = InitMasterDatabase(cfgDatabaseMaster)
+	// mysql从库
+	cfgDatabaseSlave := settingCfg.Sub("database.replica")
+	if cfgDatabaseSlave == nil {
+		panic("config not found database.replica")
+	}
+	ReplicaDatabaseConfig = InitReplicaDatabase(cfgDatabaseSlave)
+	{{- end}}
+
+	{{if .Config.Redis.Use}}
+	// redis配置文件初始化
+	cfgRedis = settingCfg.Sub("redis")
+	if cfgRedis == nil {
+		panic("config not fount redis")
+	}
+	RedisConfig = InitRedis(cfgRedis)
+	{{- end}}
+}

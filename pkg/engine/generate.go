@@ -1,16 +1,17 @@
-package pkg
+package engine
 
 import (
-	"embed"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/LAShZ/go-scaffold/config"
+	"github.com/LAShZ/go-scaffold/pkg/tempfs"
 )
 
 var ProjectName string
@@ -20,7 +21,7 @@ var Data map[string]interface{}
 var Verbose bool
 
 type ProjectGenerator struct {
-	fs     embed.FS
+	fs     tempfs.TempFS
 	logger string
 	orm    string
 	web    string
@@ -29,7 +30,7 @@ type ProjectGenerator struct {
 
 type Options func(*ProjectGenerator)
 
-func NewProjectGenerator(fs embed.FS, opts ...Options) *ProjectGenerator {
+func NewProjectGenerator(fs tempfs.TempFS, opts ...Options) *ProjectGenerator {
 	pg := &ProjectGenerator{
 		fs: fs,
 	}
@@ -68,7 +69,16 @@ func (pg *ProjectGenerator) Generate() {
 	defer func() {
 		if err != nil {
 			fmt.Printf("Generate project failed, err: %s\n", err)
+			return
 		}
+		gofmt := exec.Command("go", "fmt", "./...")
+		err = gofmt.Run()
+		if err != nil {
+			fmt.Println("fmt project failed,", err)
+		}
+		fmt.Printf("\n\n\033[0;32mProject created: \033[0m%s \n\n", ProjectName)
+		fmt.Printf("Run:\tmake dep\n\tmake build\n\tto build the project\n\n")
+		fmt.Printf("Use: ./%s to start the project\n", ProjectName)
 	}()
 
 	Data = make(map[string]interface{})
@@ -96,28 +106,56 @@ func (pg *ProjectGenerator) Generate() {
 	}
 }
 
-func (pg *ProjectGenerator) generateFile(filename string, tmplname string, data map[string]interface{}) (err error) {
+func (pg *ProjectGenerator) generateFile(filename string, tmplname string, data map[string]interface{}) error {
+	// since go embed not support embed file has prefix '.' or '_',
+	// file has name like that should trim '.' or '_' in template folder,
+	// and add the prefix here
+	if filename == "gitignore" || filename == "dockerignore" || filename == "golangci.yml" {
+		filename = "." + filename
+	}
+
 	fd, err := os.Create(filename)
 	if err != nil {
-		return
+		return err
 	}
 	tmpl, err := pg.fs.Open(tmplname)
 	if err != nil {
-		return
+		return err
 	}
 	text, err := ioutil.ReadAll(tmpl)
 	if err != nil {
-		return
+		return err
 	}
 	if Verbose {
 		fmt.Printf("\n\n\033[0;32mApplying tmpl: \033[0m%s \n %s\n\n", tmplname, text)
 	}
 	fileTmpl, err := template.New(filename).Parse(string(text))
 	if err != nil {
-		return
+		return err
 	}
 	err = fileTmpl.Execute(fd, data)
-	return
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+
+	fileData, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	if len(fileData) == 0 {
+		err = os.Remove(filename)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (pg *ProjectGenerator) generateDir(entry fs.DirEntry, prefix string) error {
@@ -128,9 +166,12 @@ func (pg *ProjectGenerator) generateDir(entry fs.DirEntry, prefix string) error 
 
 	err = os.Chdir(entry.Name())
 	if err != nil {
-		return err
+		panic(err)
 	}
 	defer func() {
+		if err != nil {
+			fmt.Printf("Generate project failed, err: %s\n", err)
+		}
 		err := os.Chdir("../")
 		if err != nil {
 			fmt.Printf("Generate project failed, err: %s\n", err)
@@ -139,11 +180,10 @@ func (pg *ProjectGenerator) generateDir(entry fs.DirEntry, prefix string) error 
 
 	path := prefix + string(filepath.Separator) + entry.Name()
 	entrys, err := pg.fs.ReadDir(path)
+
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("entry:", entrys)
 
 	for _, entry := range entrys {
 		if entry.IsDir() {
@@ -151,14 +191,22 @@ func (pg *ProjectGenerator) generateDir(entry fs.DirEntry, prefix string) error 
 			if err != nil {
 				return err
 			}
-		} else {
-			tmplname := entry.Name()
-			filename := strings.TrimSuffix(tmplname, ".tmpl")
-			err = pg.generateFile(filename, path+string(filepath.Separator)+tmplname, Data)
+			tempEntrys, err := os.ReadDir(entry.Name())
 			if err != nil {
 				return err
 			}
+			if len(tempEntrys) == 0 {
+				_ = os.RemoveAll(entry.Name())
+			}
+			continue
+		}
+		tmplname := entry.Name()
+		filename := strings.TrimSuffix(tmplname, ".tmpl")
+		err = pg.generateFile(filename, path+string(filepath.Separator)+tmplname, Data)
+		if err != nil {
+			return err
 		}
 	}
+
 	return nil
 }

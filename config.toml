@@ -3,7 +3,7 @@ name="test"
 module="github.com/LAShZ/test"
 [log]
 use=true
-logger="gitlab.yiban.io/wework-go-team/we-work-component/nlog"
+logger="github.com/uber/zap"
 [orm]
 use=false
 [web]

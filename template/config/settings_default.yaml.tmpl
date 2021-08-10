@@ -1,0 +1,36 @@
+{{if .Config.Web.Use}}
+application:
+  host: 0.0.0.0
+  mode: dev
+  name: {{.ProjectName}}
+  port: 5000
+  readtimeout: 5
+  writetimeout: 5
+{{- end}}
+{{if .Config.Log.Use}}
+logger:
+  loglevel: info
+{{- end}}
+{{if .Config.ORM.Use}}
+database:
+  master:
+    dbType: mysql
+    host:
+    name:
+    password:
+    port: 61337
+    username: root
+  replica:
+    dbType: mysql
+    host:
+    name:
+    password:
+    port: 59366
+    username: root
+{{- end}}
+{{if .Config.Redis.Use}}
+redis:
+  url: 127.0.0.1:6379
+  password:
+  db: 1
+{{- end}}

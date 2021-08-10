@@ -1,0 +1,102 @@
+{{if .Config.ORM.Use}}
+package database
+
+{{if eq .Config.ORM.Frame "gorm.io/gorm"}}
+import (
+	"{{.ProjectModule}}/config"
+	"{{.ProjectModule}}/pkg"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"time"
+
+	logger "{{.Config.Log.Logger}}"
+	glog "gorm.io/gorm/logger"
+	"gorm.io/plugin/dbresolver"
+
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+)
+
+var (
+	Host      string
+	Port      int
+	Name      string
+	Username  string
+	Password  string
+    MysqlConn string
+)
+
+func (e *Mysql) Setup() {
+	var err error
+	var db = new(Mysql)
+	MysqlConn = db.GetMasterConnect()
+	Eloquent, err = db.Open(MysqlConn)
+	if err != nil {
+		logger.Fatalf("mysql connect error %v", err)
+	} else {
+		logger.Info("mysql master connect success!")
+	}
+
+	err = Eloquent.Use(dbresolver.Register(dbresolver.Config{
+		Replicas: []gorm.Dialector{mysql.Open(db.GetReplicaConnect())},
+	}))
+	if err != nil {
+		logger.Fatalf("mysql replica error %v", err)
+	} else {
+		logger.Info("mysql replica connect success!")
+	}
+
+	if Eloquent.Error != nil {
+		logger.Fatalf("database error %v", Eloquent.Error)
+	}
+
+}
+
+type Mysql struct {
+}
+
+func (e *Mysql) Open(conn string) (db *gorm.DB, err error) {
+	if config.ApplicationConfig.Mode != string(pkg.ModeProd) {
+		newLogger := glog.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+			glog.Config{
+				SlowThreshold: time.Second, // 慢 SQL 阈值
+				LogLevel:      glog.Info,   // Log level
+				Colorful:      false,       // 禁用彩色打印
+			},
+		)
+		db, err = gorm.Open(mysql.Open(conn), &gorm.Config{
+			Logger: newLogger,
+		})
+	} else {
+		db, err = gorm.Open(mysql.Open(conn))
+	}
+	return db, err
+}
+
+func (e *Mysql) GetMasterConnect() string {
+	Name = config.MasterDatabaseConfig.Name
+	Username = config.MasterDatabaseConfig.Username
+	Password = config.MasterDatabaseConfig.Password
+	Host = config.MasterDatabaseConfig.Host
+	Port = config.MasterDatabaseConfig.Port
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&readTimeout=5s",
+		Username, Password, Host, strconv.Itoa(Port), Name)
+	return conn
+}
+
+func (e *Mysql) GetReplicaConnect() string {
+	Name = config.ReplicaDatabaseConfig.Name
+	Username = config.ReplicaDatabaseConfig.Username
+	Password = config.ReplicaDatabaseConfig.Password
+	Host = config.ReplicaDatabaseConfig.Host
+	Port = config.ReplicaDatabaseConfig.Port
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&readTimeout=5s",
+		Username, Password, Host, strconv.Itoa(Port), Name)
+	return conn
+}
+{{- end}}
+
+{{- end}}

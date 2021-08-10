@@ -7,8 +7,8 @@ GO_PROXY:=$(shell go env GOPROXY)
 
 .DEFAULT: build
 
-build: dep 
-	CGO_ENABLE=0 go build -o ${PROJECT}
+build:  
+	CGO_ENABLED=0 go build -o ${PROJECT} main.go
 
 dep:
 ifneq ($(GO_MODULE_STATE), on)

@@ -69,8 +69,7 @@ func Setup(filePath string) {
 	viper.SetDefault("web", WebConfig{Use: true, Frame: "github.com/gin-gonic/gin"})
 	viper.SetDefault("redis", RedisConfig{Use: true})
 
-	err := viper.Unmarshal(&Info)
-	if err != nil {
+	if err := viper.Unmarshal(&Info); err != nil {
 		panic("Marshal config failed!")
 	}
 	fmt.Println(Info)

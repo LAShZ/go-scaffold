@@ -1,0 +1,16 @@
+{{if .Config.Web.Use}}
+
+package router
+
+import (
+	"{{.Config.Web.Frame}}"
+	"{{.ProjectModule}}/api"
+)
+
+{{if eq .Config.Web.Frame "github.com/gin-gonic/gin"}}
+func InitRouter(g *gin.Engine) {
+	g.GET("/ping", api.Ping)
+}
+{{end}}
+
+{{end}}

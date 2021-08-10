@@ -1,0 +1,21 @@
+{{if .Config.Redis.Use}}
+package config
+
+import "github.com/spf13/viper"
+
+type Redis struct {
+	Url      string
+	Password string
+	Db       int
+}
+
+func InitRedis(cfg *viper.Viper) *Redis {
+	return &Redis{
+		Url:      cfg.GetString("url"),
+		Password: cfg.GetString("password"),
+		Db:       cfg.GetInt("db"),
+	}
+}
+
+var RedisConfig = new(Redis)
+{{- end}}
